@@ -3,25 +3,23 @@
 
 module wrapper (
     input clk,
+    input [7:0]sw,
     output [3:0]seg_an,
     output [7:0]seg_cat
     );
     
-wire [1:0]S;                            //select wires
+wire [1:0]S1;                           //display select wires
 wire clk_sig_1;                         //1Hz clock signal wire
 wire clk_sig_2;                         //1kHz clock signal wire
-wire [3:0]an_wire;                      //anode select wire
-wire [7:0]cat_wire;                     //cathode select wire
-wire [3:0]muxI0;
+wire [3:0]muxI0;                        //mux inputs
 wire [3:0]muxI1;
 wire [3:0]muxI2;
 wire [3:0]muxI3;
-wire [3:0]muxOut;
-wire [2:0]next;                         //clock from one digit to the next
+wire [3:0]muxOut;                       //mux output
 
 
 counter_1hz counter_1 (
-                    .clk_in(clk),
+                    .clk_in(clk),           //clk input
                     .clk_out(clk_sig_1)     //output 1Hz
                     );
                     
@@ -31,54 +29,39 @@ counter_1khz counter_1k (
     );
     
 counter2bit counter_2bit(
-    .clk_in(clk_sig_2),                     //1kHz input
-    .S(S)                                   //2 bit select signal
+    .clk_in(clk_sig_2),                      //1kHz input
+    .S(S1)                                   //2 bit select signal
+    );
+
+decoder2_4 decoder0 (
+    .S(S1),                                  //2 bit select signal
+    .Y(seg_an)                              //output to 7 seg anodes
     );
     
-decoder2_4 decoder (
-    .S(S),                                  //2 bit select signal
-    .Y(an_wire)                              //output to 7 seg anodes
-    );
-    
-mux4_1 mux (
-    .I0(muxI0),
+mux4_1 mux1 (
+    .I0(muxI0),                             //inputs
     .I1(muxI1),
     .I2(muxI2),
     .I3(muxI3),
-    .S(S),
-    .Y(muxOut)
+    .S(S1),                                 //select
+    .Y(muxOut)                              //output
     );
     
 seg_decoder seg_decoder (
-    .I(muxOut),
-    .Y(cat_wire)
+    .I(muxOut),                             //input
+    .Y(seg_cat)                            //output
     );
 
 BCD counter0 (
-             .clk_in(clk_sig_1),
-             .Y(muxI0),
-             .clk_out(next[0])
+             .clk_in(clk_sig_1),            //1Hz input
+             .ld(sw[0]),                    //load or run
+             .ld_val(sw[7:4]),              //values to load in
+             .S(sw[2:1]),                   //select witch display to load
+             .Y0(muxI0),                    //segment outputs
+             .Y1(muxI1),
+             .Y2(muxI2),
+             .Y3(muxI3)
              );
-             
-BCD counter1 (
-             .clk_in(next[0]),
-             .Y(muxI1),
-             .clk_out(next[1])
-             );
-             
-BCD counter2 (
-             .clk_in(next[1]),
-             .Y(muxI2),
-             .clk_out(next[2])
-             );
-             
-BCD counter3 (
-             .clk_in(next[2]),
-             .Y(muxI3)
-             );
-             
-assign seg_an = an_wire;
-assign seg_cat = cat_wire;
 
 endmodule 
 
@@ -126,6 +109,7 @@ assign Y = tmp;
 
 endmodule 
 
+
 module counter2bit (
     input clk_in,
     output [1:0]S
@@ -163,29 +147,60 @@ end
 assign Y = cat;
 endmodule
 
+
 module BCD (
-    input clk_in,
-    output [3:0]Y,
-    output clk_out
+    input clk_in,           //input clk
+    input ld,               //load == 0: load values, load == 1: run counter
+    input [1:0]S,           //select inputs
+    input [3:0]ld_val,      //values to load in
+    output [3:0]Y0,         //outputs
+    output [3:0]Y1,
+    output [3:0]Y2,
+    output [3:0]Y3
     );
        
-reg [3:0] counter = 4'b0;
-reg out = 1'b0;
+reg [3:0] counter0 = 4'b0;
+reg [3:0] counter1 = 4'b0;
+reg [3:0] counter2 = 4'b0;
+reg [3:0] counter3 = 4'b0;
 
 always @ (posedge clk_in) begin
-    if (counter == 4'b1001) begin
-        counter <= 4'b0;
-        out <= 1;
+    if (ld == 0) begin              //load in new values
+        if (S == 2'b00)
+            counter0 <= ld_val;
+        else if (S== 2'b01)
+            counter1 <= ld_val;
+        else if (S == 2'b10)
+            counter2 <= ld_val;
+        else
+            counter3 <= ld_val;
     end
-    else begin
-        counter <= counter + 1;
-        out <= 0;
+    else begin                      //run counter
+        counter0 <= counter0 + 1;
+        if (counter0 == 4'b1001) begin
+            counter0 <= 4'b0;
+            counter1 <= counter1 + 1;
+            
+            if (counter1 == 4'b1001) begin
+                counter1 <= 4'b0;
+                counter2 <= counter2 + 1;
+                
+                if (counter2 == 4'b1001) begin
+                    counter2 <= 4'b0;
+                    counter3 <= counter3 + 1;
+                    
+                    if (counter3 == 4'b1001)
+                        counter3 <= 4'b0;
+                end
+            end
+        end
     end
-        
 end
 
-assign Y = counter;
-assign clk_out = out;
+assign Y0 = counter0;
+assign Y1 = counter1;
+assign Y2 = counter2;
+assign Y3 = counter3;
 
 endmodule 
 
@@ -222,16 +237,16 @@ reg tmp = 1'b0;
 reg [26:0]counter = 27'd0;
 
 always @ (posedge clk_in) begin                        //create 1Hz counter based clock
-    if (counter == 27'd99999999) begin
-        counter <= 16'd0;
-        tmp <= ~tmp;
-    end
-    else if (counter == 27'd49999999) begin
-        counter <= counter + 1;
-        tmp <= ~tmp;
-    end
-    else
-        counter <= counter + 1;
+        if (counter == 27'd99999999) begin
+            counter <= 16'd0;
+            tmp <= ~tmp;
+        end
+        else if (counter == 27'd49999999) begin
+            counter <= counter + 1;
+            tmp <= ~tmp;
+        end
+        else
+            counter <= counter + 1;
 end
 
 assign clk_out = tmp;

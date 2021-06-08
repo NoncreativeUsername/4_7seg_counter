@@ -65,7 +65,7 @@ BCD counter0 (
 
 endmodule 
 
-
+//decoder will select witch 7 segment annode is acctive
 module decoder2_4 (
     input [1:0]S,                   //select input
     output [3:0]Y                   //output
@@ -81,17 +81,18 @@ always @ (S) begin
     endcase
 end
 
-assign Y = tmp;
+assign Y = tmp;                     //assign the temp register to the output
 
 endmodule 
 
+//4-bit 4:1 mux
 module mux4_1 (
-    input [3:0]I0,
+    input [3:0]I0,                          //inputs
     input [3:0]I1,
     input [3:0]I2,
     input [3:0]I3,
-    input [1:0]S,
-    output [3:0]Y
+    input [1:0]S,                           //select
+    output [3:0]Y                           //output
     );
     
 reg [7:0]tmp = 8'b0;
@@ -109,29 +110,31 @@ assign Y = tmp;
 
 endmodule 
 
-
+//2-bit counter
 module counter2bit (
-    input clk_in,
-    output [1:0]S
+    input clk_in,                           //clk input
+    output [1:0]S                           //output
     );
 
 reg [1:0]counter = 2'b0;
 
 always @ (posedge clk_in)
-    counter <= counter + 1;
+    counter <= counter + 1;                 //add one each clk cycle
 
 assign S = counter;
 endmodule 
 
+//7 segment decoder
 module seg_decoder (
-    input [3:0]I,
-    output [7:0]Y);
+    input [3:0]I,                           //input
+    output [7:0]Y                           //output
+    );
 
-reg [7:0] cat = 8'b0;
+reg [7:0] cat = 8'b0;                       //cat represents 7 segment cathode
 
 always @ (I) begin
     case (I)
-        4'b0001: cat <= 8'b11111001;        //1
+        4'b0001: cat <= 8'b11111001;        //1 (only 0-9 is needed here)
         4'b0010: cat <= 8'b10100100;        //2
         4'b0011: cat <= 8'b10110000;        //3
         4'b0100: cat <= 8'b10011001;        //4
@@ -175,13 +178,13 @@ always @ (posedge clk_in) begin
         else
             counter3 <= ld_val;
     end
-    else begin                      //run counter
-        counter0 <= counter0 + 1;
-        if (counter0 == 4'b1001) begin
+    else begin                                          //run counter
+        counter0 <= counter0 + 1;                       //incriment lowest digit
+        if (counter0 == 4'b1001) begin                  //at 9 incriment next digit, rst lower digit
             counter0 <= 4'b0;
             counter1 <= counter1 + 1;
             
-            if (counter1 == 4'b1001) begin
+            if (counter1 == 4'b1001) begin              //repeat above
                 counter1 <= 4'b0;
                 counter2 <= counter2 + 1;
                 
@@ -204,49 +207,51 @@ assign Y3 = counter3;
 
 endmodule 
 
+//100MHz to 1kHz clock divider
 module counter_1khz(
-    input clk_in,
-    output clk_out
+    input clk_in,                                       //input clk
+    output clk_out                                      //output clk
     );
 
-reg tmp = 1'b0;
-reg [26:0]counter = 27'd0;
+reg tmp = 1'b0;                                         //register will flip to create 1kHz clk
+reg [26:0]counter = 27'd0;                              //counter counts to 100,000 (100MHz / 1KHz)
 
-always @ (posedge clk_in) begin                        //create 1kHz counter based clock
-    if (counter == 27'd99999) begin
+always @ (posedge clk_in) begin
+    if (counter == 27'd99999) begin                     //max value reached, flip tmp and rst counter
         counter <= 16'd0;
         tmp <= ~tmp;
     end
-    else if (counter == 27'd49999) begin
+    else if (counter == 27'd49999) begin                //50% duty cycle => flip tmp at half max value
         counter <= counter + 1;
         tmp <= ~tmp;
     end
     else
-        counter <= counter + 1;
+        counter <= counter + 1;                         //counter ++
 end
 
 assign clk_out = tmp;
 endmodule
 
+//100MHz to 1Hz clock divider
 module counter_1hz(
-    input clk_in,
-    output clk_out
+    input clk_in,                                       //input clk
+    output clk_out                                      //output clk
     );
 
-reg tmp = 1'b0;
-reg [26:0]counter = 27'd0;
+reg tmp = 1'b0;                                         //flip to create clk_out
+reg [26:0]counter = 27'd0;                              
 
-always @ (posedge clk_in) begin                        //create 1Hz counter based clock
-        if (counter == 27'd99999999) begin
-            counter <= 16'd0;
+always @ (posedge clk_in) begin
+        if (counter == 27'd99999999) begin              //at max value rst counter and flip tmp
+            counter <= 16'd0;                           //max value 100,000,000 = 100MHz/1Hz
             tmp <= ~tmp;
         end
-        else if (counter == 27'd49999999) begin
+        else if (counter == 27'd49999999) begin         //50% duty cycle => flip tmp at half max value
             counter <= counter + 1;
             tmp <= ~tmp;
         end
         else
-            counter <= counter + 1;
+            counter <= counter + 1;                     //incriment every clk cycle
 end
 
 assign clk_out = tmp;

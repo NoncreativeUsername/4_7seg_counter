@@ -1,23 +1,4 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: Gunnar Pederson
-// 
-// Create Date: 06/07/2021 12:33:12 PM
-// Design Name: 
-// Module Name: counter
-// Project Name: 
-// Target Devices: Zync 7000 family
-// Tool Versions: Vivado 2020.2
-// Description: completing parts 3-5 https://realdigital.org/doc/0bfaffd4efce9695a5aeec5595ae1949
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
 
 module wrapper (
